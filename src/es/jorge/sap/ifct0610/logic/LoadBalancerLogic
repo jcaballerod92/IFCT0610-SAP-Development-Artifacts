@@ -1,0 +1,53 @@
+package es.jorge.sap.ifct0610.logic;
+
+import java.util.Scanner;
+
+/**
+ * @author Jorge Caballero Diaz
+ * @version 1.0
+ * @since 2026-04-13
+ * * Proyecto: Certificado de Profesionalidad IFCT0610
+ * Módulo de clasificación de registros basado en paridad numérica.
+ * Implementado para la segmentación de datos en procesos de carga masiva (ERP).
+ */
+public class LoadBalancerLogic
+{
+
+    public static void main(String[] args)
+    {
+            // Uso de Try-with-resources para gestionar el cierre del Scanner (Muy Senior)
+            try (Scanner inputScanner = new Scanner(System.in)) {
+
+            System.out.println("--- Sistema de Clasificación de Transacciones ---");
+            System.out.println("-------------------------------------------------\n");
+            System.out.println("--- SOLICITUD DEL ID ---");
+            System.out.print("Introduzca el ID de referencia para validación: ");
+
+            // Validación de entrada, asegurar que es numerico y por tanto susceptible de paridad
+            if (!inputScanner.hasNextInt()) {
+                System.err.println("ERROR: El formato del ID no es válido. Debe ser numérico.");
+                return;
+            }
+
+            int referenceId = inputScanner.nextInt();
+
+            System.out.println("\n--- RESULTADO DE LA PARIDAD ---");
+            // Lógica de negocio: Segmentación por paridad
+            if (isEven(referenceId)) {
+                System.out.println("RESULTADO: ID [" + referenceId + "] asignado al CANAL A (Procesamiento Par).");
+            } else {
+                System.out.println("RESULTADO: ID [" + referenceId + "] asignado al CANAL B (Procesamiento Impar).");
+            }
+            System.out.println("--- Operación finalizada correctamente ---");
+        }
+    }
+
+    /**
+     * Determina si un valor es par mediante el operador de residuo.
+     * @param number Valor a evaluar.
+     * @return boolean True si es par.
+     */
+    private static boolean isEven(int number) {
+        return (number % 2 == 0);
+    }
+}
