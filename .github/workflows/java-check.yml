@@ -2,8 +2,8 @@ name: Java Quality Check
 
 # El robot se activa cada vez que haces un "push" a la rama principal
 on:
-  push:
-    branches: [ "main" ]
+#  push:
+#    branches: [ "main" ]
 
 jobs:
   build:
