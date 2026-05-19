@@ -44,15 +44,15 @@
       *****************************************************************
        FD  IN-MOVEMENT-FILE.
        01  FD-IN-MOVEMENT-REC.
-           05 IN-RECORD-TYPE           PIC X(01).
-           05 IN-TRANSACTION-ID        PIC X(20).
-           05 IN-TRANSACTION-DATE      PIC 9(08).
-           05 IN-ACCOUNT-NUMBER        PIC X(20).
-           05 IN-TRANSACTION-TYPE      PIC X(02).
-           05 IN-AMOUNT                PIC 9(11)V99.
-           05 IN-CURRENCY              PIC X(03).
-           05 IN-REFERENCE             PIC X(35).
-           05 IN-CHANNEL               PIC X(10).
+           05 IN-RECORD-TYPE      PIC X(01).
+           05 IN-TRANSACTION-ID   PIC X(20).
+           05 IN-TRANSACTION-DATE PIC 9(08).
+           05 IN-ACCOUNT-NUMBER   PIC X(20).
+           05 IN-TRANSACTION-TYPE PIC X(02).
+           05 IN-AMOUNT           PIC 9(11)V99.
+           05 IN-CURRENCY         PIC X(03).
+           05 IN-REFERENCE        PIC X(35).
+           05 IN-CHANNEL          PIC X(10).
 
       *****************************************************************
       * VALIDATED STAGING RECORD
@@ -61,15 +61,15 @@
       *****************************************************************
        FD  STG-MOVEMENT-FILE.
        01  FD-STG-MOVEMENT-REC.
-           05 STG-TRANSACTION-ID       PIC X(20).
-           05 STG-TRANSACTION-DATE     PIC 9(08).
-           05 STG-ACCOUNT-NUMBER       PIC X(20).
-           05 STG-TRANSACTION-TYPE     PIC X(02).
-           05 STG-AMOUNT               PIC 9(11)V99.
-           05 STG-CURRENCY             PIC X(03).
-           05 STG-REFERENCE            PIC X(35).
-           05 STG-CHANNEL              PIC X(10).
-           05 STG-LOAD-TIMESTAMP       PIC X(26).
+           05 STG-TRANSACTION-ID   PIC X(20).
+           05 STG-TRANSACTION-DATE PIC 9(08).
+           05 STG-ACCOUNT-NUMBER   PIC X(20).
+           05 STG-TRANSACTION-TYPE PIC X(02).
+           05 STG-AMOUNT           PIC 9(11)V99.
+           05 STG-CURRENCY         PIC X(03).
+           05 STG-REFERENCE        PIC X(35).
+           05 STG-CHANNEL          PIC X(10).
+           05 STG-LOAD-TIMESTAMP   PIC X(26).
 
       *****************************************************************
       * ERROR MOVEMENT RECORD
@@ -78,11 +78,11 @@
       *****************************************************************
        FD  ERR-MOVEMENT-FILE.
        01  FD-ERR-MOVEMENT-REC.
-           05 ERR-TRANSACTION-ID       PIC X(20).
-           05 ERR-ERROR-CODE           PIC X(06).
-           05 ERR-ERROR-DESCRIPTION    PIC X(60).
-           05 ERR-RECORD-RAW           PIC X(200).
-           05 ERR-TIMESTAMP            PIC X(26).
+           05 ERR-TRANSACTION-ID    PIC X(20).
+           05 ERR-ERROR-CODE        PIC X(06).
+           05 ERR-ERROR-DESCRIPTION PIC X(60).
+           05 ERR-RECORD-RAW        PIC X(200).
+           05 ERR-TIMESTAMP         PIC X(26).
 
        WORKING-STORAGE SECTION.
 
@@ -92,23 +92,23 @@
       * validation status and error management.
       *****************************************************************
        01  WS-CONTROL.
-           05 WS-EOF-SW                PIC X(01) VALUE 'N'.
-              88 EOF-YES                           VALUE 'Y'.
-              88 EOF-NO                            VALUE 'N'.
-           05 WS-VALID-SW              PIC X(01) VALUE 'Y'.
-              88 RECORD-VALID                      VALUE 'Y'.
-              88 RECORD-NOT-VALID                  VALUE 'N'.
-           05 WS-RECORD-COUNT          PIC 9(09) VALUE 0.
-           05 WS-VALID-COUNT           PIC 9(09) VALUE 0.
-           05 WS-ERROR-COUNT           PIC 9(09) VALUE 0.
-           05 WS-ERROR-CODE            PIC X(06) VALUE SPACES.
-           05 WS-ERROR-DESC            PIC X(60) VALUE SPACES.
-           05 WS-TRANSACTION-DATE-NUM  PIC 9(08) VALUE 0.
-           05 WS-AMOUNT-NUM            PIC 9(11)V99 VALUE 0.
-           05 WS-LOAD-TIMESTAMP        PIC X(26) VALUE SPACES.
-           05 WS-CURRENT-DATE          PIC X(08) VALUE SPACES.
-           05 WS-CURRENT-TIME          PIC X(08) VALUE SPACES.
-           05 WS-RAW-RECORD            PIC X(200) VALUE SPACES.
+           05 WS-EOF-SW               PIC X(01) VALUE 'N'.
+              88 EOF-YES                        VALUE 'Y'.
+              88 EOF-NO                         VALUE 'N'.
+           05 WS-VALID-SW             PIC X(01) VALUE 'Y'.
+              88 RECORD-VALID                   VALUE 'Y'.
+              88 RECORD-NOT-VALID               VALUE 'N'.
+           05 WS-RECORD-COUNT         PIC 9(09) VALUE 0.
+           05 WS-VALID-COUNT          PIC 9(09) VALUE 0.
+           05 WS-ERROR-COUNT          PIC 9(09) VALUE 0.
+           05 WS-ERROR-CODE           PIC X(06) VALUE SPACES.
+           05 WS-ERROR-DESC           PIC X(60) VALUE SPACES.
+           05 WS-TRANSACTION-DATE-NUM PIC 9(08) VALUE 0.
+           05 WS-AMOUNT-NUM           PIC 9(11)V99 VALUE 0.
+           05 WS-LOAD-TIMESTAMP       PIC X(26) VALUE SPACES.
+           05 WS-CURRENT-DATE         PIC X(08) VALUE SPACES.
+           05 WS-CURRENT-TIME         PIC X(08) VALUE SPACES.
+           05 WS-RAW-RECORD           PIC X(200) VALUE SPACES.
 
       *****************************************************************
       * AUXILIARY VARIABLES
@@ -116,15 +116,15 @@
       * business rule checks during record processing.
       *****************************************************************
        01  WS-AUXILIARY.
-           05 WS-MONTH                 PIC 9(02) VALUE 0.
-           05 WS-DAY                   PIC 9(02) VALUE 0.
-           05 WS-YEAR                  PIC 9(04) VALUE 0.
-           05 WS-TEMP-DATE             PIC 9(08) VALUE 0.
+           05 WS-MONTH               PIC 9(02) VALUE 0.
+           05 WS-DAY                 PIC 9(02) VALUE 0.
+           05 WS-YEAR                PIC 9(04) VALUE 0.
+           05 WS-TEMP-DATE           PIC 9(08) VALUE 0.
            05 WS-TRANSACTION-TYPE-TBL.
               10 FILLER PIC X(02) VALUE 'CR'.
               10 FILLER PIC X(02) VALUE 'DB'.
               10 FILLER PIC X(02) VALUE 'TR'.
-           05 WS-TRANSACTION-TYPE-OK   PIC X(01) VALUE 'N'.
+           05 WS-TRANSACTION-TYPE-OK PIC X(01) VALUE 'N'.
 
        PROCEDURE DIVISION.
 
@@ -152,9 +152,9 @@
            MOVE FUNCTION CURRENT-DATE(9:8) TO WS-CURRENT-TIME
            STRING WS-CURRENT-DATE DELIMITED BY SIZE
                   WS-CURRENT-TIME DELIMITED BY SIZE
-                  INTO WS-LOAD-TIMESTAMP
+             INTO WS-LOAD-TIMESTAMP
            END-STRING
-           MOVE 'N' TO WS-EOF-SW
+           MOVE 'N'  TO WS-EOF-SW
            MOVE ZERO TO WS-RECORD-COUNT WS-VALID-COUNT WS-ERROR-COUNT
            .
 
@@ -169,7 +169,7 @@
                AT END
                    SET EOF-YES TO TRUE
                NOT AT END
-                   ADD 1 TO WS-RECORD-COUNT
+                   ADD 1                   TO WS-RECORD-COUNT
                    MOVE FD-IN-MOVEMENT-REC TO WS-RAW-RECORD
                    PERFORM 1100-VALIDATE-RECORD
                    IF RECORD-VALID
@@ -187,56 +187,57 @@
       * and description are assigned for traceability.
       *****************************************************************
        1100-VALIDATE-RECORD.
-           MOVE 'Y' TO WS-VALID-SW
+           MOVE 'Y'    TO WS-VALID-SW
            MOVE SPACES TO WS-ERROR-CODE WS-ERROR-DESC
-           MOVE ZERO TO WS-TRANSACTION-DATE-NUM WS-AMOUNT-NUM
+           MOVE ZERO   TO WS-TRANSACTION-DATE-NUM WS-AMOUNT-NUM
 
            IF IN-RECORD-TYPE NOT = 'M'
-               MOVE 'E001' TO WS-ERROR-CODE
+               MOVE 'E001'                TO WS-ERROR-CODE
                MOVE 'INVALID RECORD TYPE' TO WS-ERROR-DESC
-               MOVE 'N' TO WS-VALID-SW
+               MOVE 'N'                   TO WS-VALID-SW
            END-IF
 
            IF RECORD-VALID AND IN-TRANSACTION-ID = SPACES
-               MOVE 'E002' TO WS-ERROR-CODE
+               MOVE 'E002'                   TO WS-ERROR-CODE
                MOVE 'MISSING TRANSACTION ID' TO WS-ERROR-DESC
-               MOVE 'N' TO WS-VALID-SW
+               MOVE 'N'                      TO WS-VALID-SW
            END-IF
 
            IF RECORD-VALID AND IN-ACCOUNT-NUMBER = SPACES
-               MOVE 'E003' TO WS-ERROR-CODE
+               MOVE 'E003'                   TO WS-ERROR-CODE
                MOVE 'MISSING ACCOUNT NUMBER' TO WS-ERROR-DESC
-               MOVE 'N' TO WS-VALID-SW
+               MOVE 'N'                      TO WS-VALID-SW
            END-IF
 
            IF RECORD-VALID AND IN-TRANSACTION-DATE NOT NUMERIC
-               MOVE 'E004' TO WS-ERROR-CODE
+               MOVE 'E004'                     TO WS-ERROR-CODE
                MOVE 'INVALID TRANSACTION DATE' TO WS-ERROR-DESC
-               MOVE 'N' TO WS-VALID-SW
+               MOVE 'N'                        TO WS-VALID-SW
            END-IF
 
            IF RECORD-VALID
-               MOVE IN-TRANSACTION-DATE TO WS-TRANSACTION-DATE-NUM
+               MOVE IN-TRANSACTION-DATE     TO WS-TRANSACTION-DATE-NUM
                MOVE WS-TRANSACTION-DATE-NUM TO WS-TEMP-DATE
                IF WS-TEMP-DATE(5:2) < 1 OR WS-TEMP-DATE(5:2) > 12
-                   MOVE 'E005' TO WS-ERROR-CODE
+                   MOVE 'E005'               TO WS-ERROR-CODE
                    MOVE 'INVALID DATE MONTH' TO WS-ERROR-DESC
-                   MOVE 'N' TO WS-VALID-SW
+                   MOVE 'N'                  TO WS-VALID-SW
                END-IF
            END-IF
 
            IF RECORD-VALID AND IN-AMOUNT NOT NUMERIC
-               MOVE 'E006' TO WS-ERROR-CODE
+               MOVE 'E006'           TO WS-ERROR-CODE
                MOVE 'INVALID AMOUNT' TO WS-ERROR-DESC
-               MOVE 'N' TO WS-VALID-SW
+               MOVE 'N'              TO WS-VALID-SW
            END-IF
 
            IF RECORD-VALID
                MOVE IN-AMOUNT TO WS-AMOUNT-NUM
                IF WS-AMOUNT-NUM <= ZERO
                    MOVE 'E007' TO WS-ERROR-CODE
-                   MOVE 'AMOUNT MUST BE GREATER THAN ZERO' TO WS-ERROR-DESC
-                   MOVE 'N' TO WS-VALID-SW
+                   MOVE 'AMOUNT MUST BE GREATER THAN ZERO'
+                               TO WS-ERROR-DESC
+                   MOVE 'N'    TO WS-VALID-SW
                END-IF
            END-IF
 
@@ -252,24 +253,24 @@
                    MOVE 'Y' TO WS-TRANSACTION-TYPE-OK
                END-IF
                IF WS-TRANSACTION-TYPE-OK = 'N'
-                   MOVE 'E008' TO WS-ERROR-CODE
+                   MOVE 'E008'                     TO WS-ERROR-CODE
                    MOVE 'INVALID TRANSACTION TYPE' TO WS-ERROR-DESC
-                   MOVE 'N' TO WS-VALID-SW
+                   MOVE 'N'                        TO WS-VALID-SW
                END-IF
            END-IF
 
            IF RECORD-VALID AND IN-CURRENCY = SPACES
-               MOVE 'E009' TO WS-ERROR-CODE
+               MOVE 'E009'             TO WS-ERROR-CODE
                MOVE 'MISSING CURRENCY' TO WS-ERROR-DESC
-               MOVE 'N' TO WS-VALID-SW
+               MOVE 'N'                TO WS-VALID-SW
            END-IF
 
            IF RECORD-VALID AND IN-CURRENCY NOT = 'EUR'
-                               AND IN-CURRENCY NOT = 'USD'
-                               AND IN-CURRENCY NOT = 'GBP'
-               MOVE 'E010' TO WS-ERROR-CODE
+                           AND IN-CURRENCY NOT = 'USD'
+                           AND IN-CURRENCY NOT = 'GBP'
+               MOVE 'E010'                 TO WS-ERROR-CODE
                MOVE 'UNSUPPORTED CURRENCY' TO WS-ERROR-DESC
-               MOVE 'N' TO WS-VALID-SW
+               MOVE 'N'                    TO WS-VALID-SW
            END-IF
 
            IF RECORD-VALID
