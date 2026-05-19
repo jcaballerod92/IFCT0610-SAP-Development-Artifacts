@@ -37,9 +37,11 @@ import java.util.Objects;
  * Java backend / enterprise financial environment with DB2.
  * =====================================================================
  */
-public final class FinancialBatchLoaderApplication {
+public final class FinancialBatchLoaderApplication
+{
 
-    public static void main(String[] args) {
+    public static void main(String[] args)
+    {
         final String fileName = args.length > 0 ? args[0] : "sample-files/input/financial_movements.csv";
         final FinancialBatchLoaderApplication application = new FinancialBatchLoaderApplication();
         final LoadResultDto result = application.run(fileName);
@@ -55,24 +57,29 @@ public final class FinancialBatchLoaderApplication {
      *   main() -> FileReaderService -> TransactionValidator -> LoadService
      *        -> LoadRepository -> generation of result / log
      */
-    public LoadResultDto run(final String fileName) {
+    public LoadResultDto run(final String fileName)
+    {
         final BatchContext context = new BatchContext(fileName);
         final FileReaderService fileReaderService = new FileReaderService();
         final TransactionValidator transactionValidator = new TransactionValidator();
         final LoadRepository loadRepository = new LoadRepository();
         final LoadService loadService = new LoadService(loadRepository);
 
-        try {
+        try
+        {
             final List<TransactionRecord> records = fileReaderService.read(fileName);
             context.loadedCount = records.size();
 
-            for (final TransactionRecord record : records) {
+            for (final TransactionRecord record : records)
+            {
                 final ValidationResult validationResult = transactionValidator.validate(record);
 
-                if (validationResult.isValid()) {
+                if (validationResult.isValid())
+                {
                     loadService.load(record, context);
                     context.validCount++;
-                } else {
+                } else
+                {
                     context.rejectedCount++;
                     context.validationErrors.add(new ErrorRecord(
                             record.transactionId,
@@ -93,7 +100,8 @@ public final class FinancialBatchLoaderApplication {
                     context.loadTimestamp,
                     context.validationErrors
             );
-        } catch (IOException e) {
+        } catch (IOException e)
+        {
             context.batchStatus = "TECHNICAL_ERROR";
             context.validationErrors.add(new ErrorRecord(
                     null,
@@ -109,7 +117,8 @@ public final class FinancialBatchLoaderApplication {
                     context.loadTimestamp,
                     context.validationErrors
             );
-        } catch (RuntimeException e) {
+        } catch (RuntimeException e)
+        {
             context.batchStatus = "TECHNICAL_ERROR";
             context.validationErrors.add(new ErrorRecord(
                     null,
@@ -131,7 +140,8 @@ public final class FinancialBatchLoaderApplication {
     /**
      * Batch execution context used to keep counters, status and timestamp.
      */
-    static final class BatchContext {
+    static final class BatchContext
+    {
         private final String fileName;
         private int loadedCount;
         private int validCount;
@@ -140,7 +150,8 @@ public final class FinancialBatchLoaderApplication {
         private LocalDateTime loadTimestamp;
         private final List<ErrorRecord> validationErrors = new ArrayList<>();
 
-        private BatchContext(final String fileName) {
+        private BatchContext(final String fileName)
+        {
             this.fileName = fileName;
         }
     }
@@ -148,7 +159,8 @@ public final class FinancialBatchLoaderApplication {
     /**
      * Domain record representing a movement from the input file.
      */
-    static final class TransactionRecord {
+    static final class TransactionRecord
+    {
         private final String transactionId;
         private final LocalDate transactionDate;
         private final String accountNumber;
@@ -164,7 +176,8 @@ public final class FinancialBatchLoaderApplication {
                 final String transactionType,
                 final double amount,
                 final String currency,
-                final String reference) {
+                final String reference)
+        {
             this.transactionId = transactionId;
             this.transactionDate = transactionDate;
             this.accountNumber = accountNumber;
@@ -174,7 +187,8 @@ public final class FinancialBatchLoaderApplication {
             this.reference = reference;
         }
 
-        static TransactionRecord fromCsvLine(final String line) {
+        static TransactionRecord fromCsvLine(final String line)
+        {
             final String[] parts = line.split(",", -1);
             if (parts.length < 7) {
                 throw new IllegalArgumentException("Invalid CSV format. Expected 7 columns.");
@@ -195,7 +209,8 @@ public final class FinancialBatchLoaderApplication {
     /**
      * Error record used to store the rejection reason of a transaction.
      */
-    static final class ErrorRecord {
+    static final class ErrorRecord
+    {
         private final String transactionId;
         private final String errorCode;
         private final String errorDescription;
@@ -203,14 +218,16 @@ public final class FinancialBatchLoaderApplication {
         private ErrorRecord(
                 final String transactionId,
                 final String errorCode,
-                final String errorDescription) {
+                final String errorDescription)
+        {
             this.transactionId = transactionId;
             this.errorCode = errorCode;
             this.errorDescription = errorDescription;
         }
 
         @Override
-        public String toString() {
+        public String toString()
+        {
             return "ErrorRecord{" +
                     "transactionId='" + transactionId + '\'' +
                     ", errorCode='" + errorCode + '\'' +
@@ -222,7 +239,8 @@ public final class FinancialBatchLoaderApplication {
     /**
      * Result DTO returned by the batch application.
      */
-    static final class LoadResultDto {
+    static final class LoadResultDto
+    {
         private final int processedRecords;
         private final int validRecords;
         private final int rejectedRecords;
@@ -236,7 +254,8 @@ public final class FinancialBatchLoaderApplication {
                 final int rejectedRecords,
                 final String loadStatus,
                 final LocalDateTime loadTimestamp,
-                final List<ErrorRecord> errors) {
+                final List<ErrorRecord> errors)
+        {
             this.processedRecords = processedRecords;
             this.validRecords = validRecords;
             this.rejectedRecords = rejectedRecords;
@@ -246,7 +265,8 @@ public final class FinancialBatchLoaderApplication {
         }
 
         @Override
-        public String toString() {
+        public String toString()
+        {
             return "LoadResultDto{" +
                     "processedRecords=" + processedRecords +
                     ", validRecords=" + validRecords +
@@ -261,24 +281,30 @@ public final class FinancialBatchLoaderApplication {
     /**
      * Reads the input file and converts each line into a domain record.
      */
-    static final class FileReaderService {
+    static final class FileReaderService
+    {
 
-        List<TransactionRecord> read(final String fileName) throws IOException {
+        List<TransactionRecord> read(final String fileName) throws IOException
+        {
             final Path path = Path.of(fileName);
             final List<TransactionRecord> records = new ArrayList<>();
 
-            try (BufferedReader reader = Files.newBufferedReader(path)) {
+            try (BufferedReader reader = Files.newBufferedReader(path))
+            {
                 String line;
                 boolean firstLine = true;
 
-                while ((line = reader.readLine()) != null) {
+                while ((line = reader.readLine()) != null)
+                {
                     final String trimmed = line.trim();
-                    if (trimmed.isEmpty()) {
+                    if (trimmed.isEmpty())
+                    {
                         continue;
                     }
 
                     // Skip header if the file is CSV with column names.
-                    if (firstLine && trimmed.toLowerCase().contains("transactionid")) {
+                    if (firstLine && trimmed.toLowerCase().contains("transactionid"))
+                    {
                         firstLine = false;
                         continue;
                     }
@@ -295,19 +321,25 @@ public final class FinancialBatchLoaderApplication {
     /**
      * Validates mandatory fields and basic business rules.
      */
-    static final class TransactionValidator {
+    static final class TransactionValidator
+    {
 
-        ValidationResult validate(final TransactionRecord record) {
-            if (record == null) {
+        ValidationResult validate(final TransactionRecord record)
+        {
+            if (record == null)
+            {
                 return ValidationResult.error("E001", "Record is null");
             }
-            if (isBlank(record.transactionId)) {
+            if (isBlank(record.transactionId))
+            {
                 return ValidationResult.error("E002", "Missing transaction identifier");
             }
-            if (record.transactionDate == null) {
+            if (record.transactionDate == null)
+            {
                 return ValidationResult.error("E003", "Missing transaction date");
             }
-            if (isBlank(record.accountNumber)) {
+            if (isBlank(record.accountNumber))
+            {
                 return ValidationResult.error("E004", "Missing account number");
             }
             if (isBlank(record.transactionType) || !("CR".equals(record.transactionType)
@@ -315,7 +347,8 @@ public final class FinancialBatchLoaderApplication {
                     || "TR".equals(record.transactionType))) {
                 return ValidationResult.error("E005", "Invalid transaction type");
             }
-            if (record.amount <= 0) {
+            if (record.amount <= 0)
+            {
                 return ValidationResult.error("E006", "Amount must be greater than zero");
             }
             if (isBlank(record.currency) || !("EUR".equals(record.currency)
@@ -323,13 +356,15 @@ public final class FinancialBatchLoaderApplication {
                     || "GBP".equals(record.currency))) {
                 return ValidationResult.error("E007", "Unsupported currency");
             }
-            if (isBlank(record.reference)) {
+            if (isBlank(record.reference))
+            {
                 return ValidationResult.error("E008", "Missing reference");
             }
             return ValidationResult.ok();
         }
 
-        private boolean isBlank(final String value) {
+        private boolean isBlank(final String value)
+        {
             return value == null || value.trim().isEmpty();
         }
     }
@@ -337,26 +372,31 @@ public final class FinancialBatchLoaderApplication {
     /**
      * Encapsulates validation result.
      */
-    static final class ValidationResult {
+    static final class ValidationResult
+    {
         private final boolean valid;
         private final String errorCode;
         private final String errorDescription;
 
-        private ValidationResult(final boolean valid, final String errorCode, final String errorDescription) {
+        private ValidationResult(final boolean valid, final String errorCode, final String errorDescription)
+        {
             this.valid = valid;
             this.errorCode = errorCode;
             this.errorDescription = errorDescription;
         }
 
-        static ValidationResult ok() {
+        static ValidationResult ok()
+        {
             return new ValidationResult(true, null, null);
         }
 
-        static ValidationResult error(final String errorCode, final String errorDescription) {
+        static ValidationResult error(final String errorCode, final String errorDescription)
+        {
             return new ValidationResult(false, errorCode, errorDescription);
         }
 
-        boolean isValid() {
+        boolean isValid()
+        {
             return valid;
         }
     }
@@ -364,14 +404,17 @@ public final class FinancialBatchLoaderApplication {
     /**
      * Handles the business load flow and delegates persistence to the repository.
      */
-    static final class LoadService {
+    static final class LoadService
+        {
         private final LoadRepository loadRepository;
 
-        private LoadService(final LoadRepository loadRepository) {
+        private LoadService(final LoadRepository loadRepository)
+        {
             this.loadRepository = Objects.requireNonNull(loadRepository, "loadRepository");
         }
 
-        void load(final TransactionRecord record, final BatchContext context) {
+        void load(final TransactionRecord record, final BatchContext context)
+        {
             loadRepository.insertTransaction(record);
         }
     }
@@ -388,13 +431,15 @@ public final class FinancialBatchLoaderApplication {
         private static final String JDBC_USER = "finuser";
         private static final String JDBC_PASSWORD = "finpass";
 
-        void insertTransaction(final TransactionRecord record) {
+        void insertTransaction(final TransactionRecord record)
+            {
             final String sql = "INSERT INTO FIN_STG_MOVEMENT " +
                     "(TRANSACTION_ID, TRANSACTION_DATE, ACCOUNT_NUMBER, TRANSACTION_TYPE, AMOUNT, CURRENCY, REFERENCE, CHANNEL) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
             try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
-                 PreparedStatement statement = connection.prepareStatement(sql)) {
+                 PreparedStatement statement = connection.prepareStatement(sql))
+            {
 
                 statement.setString(1, record.transactionId);
                 statement.setDate(2, java.sql.Date.valueOf(record.transactionDate));
@@ -406,7 +451,8 @@ public final class FinancialBatchLoaderApplication {
                 statement.setString(8, "BATCH");
                 statement.executeUpdate();
 
-            } catch (SQLException e) {
+            } catch (SQLException e)
+            {
                 throw new RuntimeException("DB2 insert error while loading transaction " + record.transactionId, e);
             }
         }
