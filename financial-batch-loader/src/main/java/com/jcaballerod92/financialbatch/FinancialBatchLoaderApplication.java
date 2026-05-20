@@ -1,459 +1,161 @@
-package java;
-import java.io.BufferedReader;
+package com.jcaballerod92.financialbatch;
+
+import com.jcaballerod92.financialbatch.database.DatabaseInitializer;
+import com.jcaballerod92.financialbatch.model.FinancialTransaction;
+import com.jcaballerod92.financialbatch.model.LoadResultDto;
+import com.jcaballerod92.financialbatch.repository.LoadRepository;
+import com.jcaballerod92.financialbatch.service.FileReaderService;
+import com.jcaballerod92.financialbatch.service.LoadService;
+import com.jcaballerod92.financialbatch.service.TransactionValidator;
+import com.jcaballerod92.financialbatch.service.TransactionValidator.ValidationResult;
+
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.LocalDate;
+import java.io.InputStream;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+import java.util.Properties;
 
 /**
- * =====================================================================
- * PROGRAM NAME : FinancialBatchLoaderApplication
- * AUTHOR       : Jorge Caballero Diaz
- * PURPOSE      : Batch load and validation of financial movement files.
- *
- * DESCRIPTION  :
- * - Reads a flat file or CSV containing financial movement records
- * - Validates format and business rules
- * - Persists valid records into DB2 via JDBC
- * - Captures rejected records for error reporting
- * - Produces load counters and execution status
- *
- * EXECUTION    :
- * Batch-oriented Java application executed from command line or a
- * scheduler such as Control-M / task scheduler / external orchestration.
- *
- * ENVIRONMENT  :
- * Java backend / enterprise financial environment with DB2.
- * =====================================================================
+ * Main batch application entry point.
+ * Responsible for coordinating initialization, file reading,
+ * validation, persistence and final batch result creation.
  */
-public final class FinancialBatchLoaderApplication
-{
+public final class FinancialBatchLoaderApplication {
 
-    public static void main(String[] args)
-    {
-        final String fileName = args.length > 0 ? args[0] : "sample-files/input/financial_movements.csv";
-        final FinancialBatchLoaderApplication application = new FinancialBatchLoaderApplication();
-        final LoadResultDto result = application.run(fileName);
-
-        System.out.println("=== FINANCIAL BATCH LOAD RESULT ===");
+    /**
+     * Main entry point used by the JVM.
+     * Launches the batch execution and prints the final result.
+     *
+     * @param args optional command-line arguments
+     */
+    public static void main(String[] args) {
+        FinancialBatchLoaderApplication application = new FinancialBatchLoaderApplication();
+        LoadResultDto result = application.execute();
         System.out.println(result);
     }
 
     /**
-     * Runs the complete batch load flow.
+     * Executes the complete batch flow.
+     * This method orchestrates:
+     * - properties loading
+     * - database initialization
+     * - CSV reading
+     * - business validation
+     * - JDBC persistence
+     * - batch summary creation
      *
-     * Main flow:
-     *   main() -> FileReaderService -> TransactionValidator -> LoadService
-     *        -> LoadRepository -> generation of result / log
+     * @return final execution result DTO
      */
-    public LoadResultDto run(final String fileName)
-    {
-        final BatchContext context = new BatchContext(fileName);
-        final FileReaderService fileReaderService = new FileReaderService();
-        final TransactionValidator transactionValidator = new TransactionValidator();
-        final LoadRepository loadRepository = new LoadRepository();
-        final LoadService loadService = new LoadService(loadRepository);
+    public LoadResultDto execute() {
+        Properties properties = loadProperties();
 
-        try
-        {
-            final List<TransactionRecord> records = fileReaderService.read(fileName);
-            context.loadedCount = records.size();
+        String inputFile = properties.getProperty("app.input-file", "sample-files/financial_movements.csv");
+        String dbUrl = properties.getProperty("db.url", "jdbc:h2:file:./data/fin_db;AUTO_SERVER=TRUE;MODE=LEGACY");
+        String dbUser = properties.getProperty("db.user", "sa");
+        String dbPassword = properties.getProperty("db.password", "");
 
-            for (final TransactionRecord record : records)
-            {
-                final ValidationResult validationResult = transactionValidator.validate(record);
+        List<String> errorMessages = new ArrayList<String>();
+        int processedRecords = 0;
+        int validRecords = 0;
+        int rejectedRecords = 0;
+        String loadStatus = "SUCCESS";
+        LocalDateTime loadTimestamp = LocalDateTime.now();
 
-                if (validationResult.isValid())
-                {
-                    loadService.load(record, context);
-                    context.validCount++;
-                } else
-                {
-                    context.rejectedCount++;
-                    context.validationErrors.add(new ErrorRecord(
-                            record.transactionId,
-                            validationResult.errorCode,
-                            validationResult.errorDescription
-                    ));
+        try {
+            java.nio.file.Files.createDirectories(java.nio.file.Paths.get("data"));
+
+            DatabaseInitializer databaseInitializer = new DatabaseInitializer(dbUrl, dbUser, dbPassword);
+            databaseInitializer.initialize();
+
+            FileReaderService fileReaderService = new FileReaderService();
+            TransactionValidator validator = new TransactionValidator();
+            LoadRepository loadRepository = new LoadRepository(dbUrl, dbUser, dbPassword);
+            LoadService loadService = new LoadService(loadRepository);
+
+            List<FinancialTransaction> records = fileReaderService.read(inputFile);
+            processedRecords = records.size();
+
+            for (FinancialTransaction record : records) {
+                ValidationResult validation = validator.validate(record);
+
+                if (validation.isValid()) {
+                    try {
+                        loadService.load(record);
+                        validRecords++;
+                    } catch (RuntimeException ex) {
+                        rejectedRecords++;
+                        loadStatus = "WITH_ERRORS";
+                        errorMessages.add(buildError(record.getTransactionId(), "E900",
+                                "Database load error: " + ex.getMessage()));
+                    }
+                } else {
+                    rejectedRecords++;
+                    loadStatus = "WITH_ERRORS";
+                    errorMessages.add(buildError(record.getTransactionId(),
+                            validation.getErrorCode(),
+                            validation.getErrorDescription()));
                 }
             }
-
-            context.batchStatus = context.rejectedCount == 0 ? "SUCCESS" : "WITH_ERRORS";
-            context.loadTimestamp = LocalDateTime.now();
-
-            return new LoadResultDto(
-                    context.loadedCount,
-                    context.validCount,
-                    context.rejectedCount,
-                    context.batchStatus,
-                    context.loadTimestamp,
-                    context.validationErrors
-            );
-        } catch (IOException e)
-        {
-            context.batchStatus = "TECHNICAL_ERROR";
-            context.validationErrors.add(new ErrorRecord(
-                    null,
-                    "E900",
-                    "I/O error while reading batch file: " + e.getMessage()
-            ));
-            context.loadTimestamp = LocalDateTime.now();
-            return new LoadResultDto(
-                    context.loadedCount,
-                    context.validCount,
-                    context.rejectedCount,
-                    context.batchStatus,
-                    context.loadTimestamp,
-                    context.validationErrors
-            );
-        } catch (RuntimeException e)
-        {
-            context.batchStatus = "TECHNICAL_ERROR";
-            context.validationErrors.add(new ErrorRecord(
-                    null,
-                    "E999",
-                    "Unexpected technical error: " + e.getMessage()
-            ));
-            context.loadTimestamp = LocalDateTime.now();
-            return new LoadResultDto(
-                    context.loadedCount,
-                    context.validCount,
-                    context.rejectedCount,
-                    context.batchStatus,
-                    context.loadTimestamp,
-                    context.validationErrors
-            );
+        } catch (IOException ex) {
+            loadStatus = "TECHNICAL_ERROR";
+            errorMessages.add(buildError(null, "E901", "File error: " + ex.getMessage()));
+        } catch (RuntimeException ex) {
+            loadStatus = "TECHNICAL_ERROR";
+            errorMessages.add(buildError(null, "E999", "Unexpected error: " + ex.getMessage()));
         }
+
+        if (rejectedRecords > 0 && "SUCCESS".equals(loadStatus)) {
+            loadStatus = "WITH_ERRORS";
+        }
+
+        return new LoadResultDto(
+                processedRecords,
+                validRecords,
+                rejectedRecords,
+                loadStatus,
+                loadTimestamp,
+                errorMessages
+        );
     }
 
     /**
-     * Batch execution context used to keep counters, status and timestamp.
-     */
-    static final class BatchContext
-    {
-        private final String fileName;
-        private int loadedCount;
-        private int validCount;
-        private int rejectedCount;
-        private String batchStatus;
-        private LocalDateTime loadTimestamp;
-        private final List<ErrorRecord> validationErrors = new ArrayList<>();
-
-        private BatchContext(final String fileName)
-        {
-            this.fileName = fileName;
-        }
-    }
-
-    /**
-     * Domain record representing a movement from the input file.
-     */
-    static final class TransactionRecord
-    {
-        private final String transactionId;
-        private final LocalDate transactionDate;
-        private final String accountNumber;
-        private final String transactionType;
-        private final double amount;
-        private final String currency;
-        private final String reference;
-
-        private TransactionRecord(
-                final String transactionId,
-                final LocalDate transactionDate,
-                final String accountNumber,
-                final String transactionType,
-                final double amount,
-                final String currency,
-                final String reference)
-        {
-            this.transactionId = transactionId;
-            this.transactionDate = transactionDate;
-            this.accountNumber = accountNumber;
-            this.transactionType = transactionType;
-            this.amount = amount;
-            this.currency = currency;
-            this.reference = reference;
-        }
-
-        static TransactionRecord fromCsvLine(final String line)
-        {
-            final String[] parts = line.split(",", -1);
-            if (parts.length < 7) {
-                throw new IllegalArgumentException("Invalid CSV format. Expected 7 columns.");
-            }
-
-            return new TransactionRecord(
-                    parts[0].trim(),
-                    LocalDate.parse(parts[1].trim()),
-                    parts[2].trim(),
-                    parts[3].trim(),
-                    Double.parseDouble(parts[4].trim()),
-                    parts[5].trim(),
-                    parts[6].trim()
-            );
-        }
-    }
-
-    /**
-     * Error record used to store the rejection reason of a transaction.
-     */
-    static final class ErrorRecord
-    {
-        private final String transactionId;
-        private final String errorCode;
-        private final String errorDescription;
-
-        private ErrorRecord(
-                final String transactionId,
-                final String errorCode,
-                final String errorDescription)
-        {
-            this.transactionId = transactionId;
-            this.errorCode = errorCode;
-            this.errorDescription = errorDescription;
-        }
-
-        @Override
-        public String toString()
-        {
-            return "ErrorRecord{" +
-                    "transactionId='" + transactionId + '\'' +
-                    ", errorCode='" + errorCode + '\'' +
-                    ", errorDescription='" + errorDescription + '\'' +
-                    '}';
-        }
-    }
-
-    /**
-     * Result DTO returned by the batch application.
-     */
-    static final class LoadResultDto
-    {
-        private final int processedRecords;
-        private final int validRecords;
-        private final int rejectedRecords;
-        private final String loadStatus;
-        private final LocalDateTime loadTimestamp;
-        private final List<ErrorRecord> errors;
-
-        private LoadResultDto(
-                final int processedRecords,
-                final int validRecords,
-                final int rejectedRecords,
-                final String loadStatus,
-                final LocalDateTime loadTimestamp,
-                final List<ErrorRecord> errors)
-        {
-            this.processedRecords = processedRecords;
-            this.validRecords = validRecords;
-            this.rejectedRecords = rejectedRecords;
-            this.loadStatus = loadStatus;
-            this.loadTimestamp = loadTimestamp;
-            this.errors = new ArrayList<>(errors);
-        }
-
-        @Override
-        public String toString()
-        {
-            return "LoadResultDto{" +
-                    "processedRecords=" + processedRecords +
-                    ", validRecords=" + validRecords +
-                    ", rejectedRecords=" + rejectedRecords +
-                    ", loadStatus='" + loadStatus + '\'' +
-                    ", loadTimestamp=" + loadTimestamp +
-                    ", errors=" + errors +
-                    '}';
-        }
-    }
-
-    /**
-     * Reads the input file and converts each line into a domain record.
-     */
-    static final class FileReaderService
-    {
-
-        List<TransactionRecord> read(final String fileName) throws IOException
-        {
-            final Path path = java.nio.file.Paths.get(fileName);
-            final List<TransactionRecord> records = new ArrayList<>();
-
-            try (BufferedReader reader = Files.newBufferedReader(path))
-            {
-                String line;
-                boolean firstLine = true;
-
-                while ((line = reader.readLine()) != null)
-                {
-                    final String trimmed = line.trim();
-                    if (trimmed.isEmpty())
-                    {
-                        continue;
-                    }
-
-                    // Skip header if the file is CSV with column names.
-                    if (firstLine && trimmed.toLowerCase().contains("transactionid"))
-                    {
-                        firstLine = false;
-                        continue;
-                    }
-                    firstLine = false;
-
-                    records.add(TransactionRecord.fromCsvLine(trimmed));
-                }
-            }
-
-            return records;
-        }
-    }
-
-    /**
-     * Validates mandatory fields and basic business rules.
-     */
-    static final class TransactionValidator
-    {
-
-        ValidationResult validate(final TransactionRecord record)
-        {
-            if (record == null)
-            {
-                return ValidationResult.error("E001", "Record is null");
-            }
-            if (isBlank(record.transactionId))
-            {
-                return ValidationResult.error("E002", "Missing transaction identifier");
-            }
-            if (record.transactionDate == null)
-            {
-                return ValidationResult.error("E003", "Missing transaction date");
-            }
-            if (isBlank(record.accountNumber))
-            {
-                return ValidationResult.error("E004", "Missing account number");
-            }
-            if (isBlank(record.transactionType) || !("CR".equals(record.transactionType)
-                    || "DB".equals(record.transactionType)
-                    || "TR".equals(record.transactionType))) {
-                return ValidationResult.error("E005", "Invalid transaction type");
-            }
-            if (record.amount <= 0)
-            {
-                return ValidationResult.error("E006", "Amount must be greater than zero");
-            }
-            if (isBlank(record.currency) || !("EUR".equals(record.currency)
-                    || "USD".equals(record.currency)
-                    || "GBP".equals(record.currency))) {
-                return ValidationResult.error("E007", "Unsupported currency");
-            }
-            if (isBlank(record.reference))
-            {
-                return ValidationResult.error("E008", "Missing reference");
-            }
-            return ValidationResult.ok();
-        }
-
-        private boolean isBlank(final String value)
-        {
-            return value == null || value.trim().isEmpty();
-        }
-    }
-
-    /**
-     * Encapsulates validation result.
-     */
-    static final class ValidationResult
-    {
-        private final boolean valid;
-        private final String errorCode;
-        private final String errorDescription;
-
-        private ValidationResult(final boolean valid, final String errorCode, final String errorDescription)
-        {
-            this.valid = valid;
-            this.errorCode = errorCode;
-            this.errorDescription = errorDescription;
-        }
-
-        static ValidationResult ok()
-        {
-            return new ValidationResult(true, null, null);
-        }
-
-        static ValidationResult error(final String errorCode, final String errorDescription)
-        {
-            return new ValidationResult(false, errorCode, errorDescription);
-        }
-
-        boolean isValid()
-        {
-            return valid;
-        }
-    }
-
-    /**
-     * Handles the business load flow and delegates persistence to the repository.
-     */
-    static final class LoadService
-        {
-        private final LoadRepository loadRepository;
-
-        private LoadService(final LoadRepository loadRepository)
-        {
-            this.loadRepository = Objects.requireNonNull(loadRepository, "loadRepository");
-        }
-
-        void load(final TransactionRecord record, final BatchContext context)
-        {
-            loadRepository.insertTransaction(record);
-        }
-    }
-
-    /**
-     * Repository layer for DB2 persistence using JDBC.
+     * Loads application properties from the classpath.
+     * If the file is not available, default values will be used.
      *
-     * NOTE:
-     * Connection details are intentionally simplified. In a real project,
-     * they would be loaded from configuration or environment variables.
+     * @return properties object loaded from resources
      */
-    static final class LoadRepository {
-        private static final String JDBC_URL = "jdbc:db2://localhost:50000/FINDB";
-        private static final String JDBC_USER = "finuser";
-        private static final String JDBC_PASSWORD = "finpass";
+    private Properties loadProperties() {
+        Properties properties = new Properties();
 
-        void insertTransaction(final TransactionRecord record)
-            {
-            final String sql = "INSERT INTO FIN_STG_MOVEMENT " +
-                    "(TRANSACTION_ID, TRANSACTION_DATE, ACCOUNT_NUMBER, TRANSACTION_TYPE, AMOUNT, CURRENCY, REFERENCE, CHANNEL) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        InputStream inputStream = FinancialBatchLoaderApplication.class
+                .getClassLoader()
+                .getResourceAsStream("application.properties");
 
-            try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
-                 PreparedStatement statement = connection.prepareStatement(sql))
-            {
-
-                statement.setString(1, record.transactionId);
-                statement.setDate(2, java.sql.Date.valueOf(record.transactionDate));
-                statement.setString(3, record.accountNumber);
-                statement.setString(4, record.transactionType);
-                statement.setDouble(5, record.amount);
-                statement.setString(6, record.currency);
-                statement.setString(7, record.reference);
-                statement.setString(8, "BATCH");
-                statement.executeUpdate();
-
-            } catch (SQLException e)
-            {
-                throw new RuntimeException("DB2 insert error while loading transaction " + record.transactionId, e);
-            }
+        if (inputStream == null) {
+            return properties;
         }
+
+        try {
+            properties.load(inputStream);
+        } catch (IOException ignored) {
+            // Default values will be used if properties cannot be loaded.
+        }
+
+        return properties;
+    }
+
+    /**
+     * Builds a standardized error text for console output or log use.
+     *
+     * @param transactionId related transaction identifier
+     * @param errorCode technical/business error code
+     * @param description error explanation
+     * @return formatted error message
+     */
+    private String buildError(String transactionId, String errorCode, String description) {
+        return "transactionId=" + transactionId
+                + " | errorCode=" + errorCode
+                + " | errorDescription=" + description;
     }
 }

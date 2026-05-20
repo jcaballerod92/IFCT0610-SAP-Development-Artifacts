@@ -1,0 +1,4 @@
+transactionId,transactionDate,accountNumber,transactionType,amount,currency,reference
+TRX0001,2026-05-01,ACC10001,CR,1500.25,EUR,PAYROLL
+TRX0002,2026-05-02,ACC10002,DB,300.50,EUR,ATM
+TRX0003,2026-05-03,ACC10003,TR,1200.00,USD,TRANSFER
